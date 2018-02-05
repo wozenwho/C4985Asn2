@@ -1,4 +1,14 @@
 #pragma once
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma comment(lib, "Ws2_32.lib")
+#include <WinSock2.h>
+#include <Windows.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "Setup.h"
+
 //Window size constants
 #define WINDOW_WIDTH			400
 #define WINDOW_HEIGHT			600
