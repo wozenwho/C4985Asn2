@@ -14,6 +14,9 @@ HWND radioButtonServer;
 HWND sendButton;
 
 //Global winsock variables
+WSADATA wsaData;
+WORD wVersionRequested = MAKEWORD(2, 2);
+int wsaResult;
 SOCKET socketRecv;
 SOCKET socketSend;
 
@@ -60,6 +63,13 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR lspszCmdParam
 
 	if (!setup())
 		return 0;
+
+	wsaResult = WSAStartup(wVersionRequested, &wsaData);
+	if (wsaResult != 0)
+	{
+		wsaResult = WSAGetLastError();
+		exit(1);
+	}
 
 	while (GetMessage(&Msg, NULL, 0, 0))
 	{
