@@ -35,6 +35,10 @@ int sendTCP(char* ipAddr, int packSize, int numPacks)
 int sendUDP(char* ipAddr, int packSize, int numPacks)
 {
 	HANDLE sendThread;
+	DWORD threadID;
+	struct sockaddr_in receiver;
+	sendThrdParam stp;
+	char defaultBuffer[MAX_PACK_SIZE];
 	int errorUDP;
 
 	size_t numPackRecv = 0;
@@ -46,6 +50,17 @@ int sendUDP(char* ipAddr, int packSize, int numPacks)
 		errorUDP = WSAGetLastError();
 	}
 
+	memset((char*)&receiver, 0, sizeof(sockaddr_in));
+	receiver.sin_family = AF_INET;
+	receiver.sin_port = htons(PORT_NO);
+	receiver.sin_addr.s_addr = inet_addr(ipAddr);
+
+	stp.receiver = receiver;
+	stp.packSize = packSize;
+	stp.numPacks = numPacks;
+	stp.filePtr = NULL;
+
+	sendThread = CreateThread(NULL, 0, sendTCPThread, (LPVOID) &stp, 0, &threadID);
 
 	return 0;
 }
