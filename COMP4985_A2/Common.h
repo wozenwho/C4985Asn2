@@ -10,3 +10,11 @@ extern HWND radioButtonTCP;
 extern HWND radioButtonClient;
 extern HWND radioButtonServer;
 extern HWND sendButton;
+
+extern SOCKET socketRecv;
+extern SOCKET socketSend;
+
+extern size_t numPackSent;
+extern size_t totalDataSent;
+extern size_t numPackRecv;
+extern size_t totalDataRecv;

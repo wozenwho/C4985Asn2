@@ -18,7 +18,10 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Setup.cpp">
+    <ClCompile Include="Send.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Receive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,10 +29,13 @@
     <ClInclude Include="Header.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="Setup.h">
+    <ClInclude Include="Common.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common.h">
+    <ClInclude Include="Send.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Receive.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

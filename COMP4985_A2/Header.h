@@ -7,13 +7,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "Setup.h"
+#include "Send.h"
+#include "Receive.h"
+#include "Common.h"
+
+//Connection constants
+#define PORT_NO					9999
 
 //Window size constants
 #define WINDOW_WIDTH			400
 #define WINDOW_HEIGHT			600
 #define xOffset					15
 #define yOffset					25
+
+//Window IDs
+#define id_client				100
+#define id_server				101
+#define id_tcp					102
+#define id_udp					103
+#define id_ipaddr				104
+#define id_packSize				105
+#define id_numPacks				106
+#define id_send					107
 
 //Radio button constants
 #define width_radio				90
@@ -23,7 +38,6 @@
 #define xCoord_TCP				110
 #define xCoord_UDP				xCoord_TCP + width_radio
 #define yCoord_protocol			30
-
 
 //IP field constants
 #define xCoord_ip				110
@@ -45,6 +59,9 @@
 
 //Buffer sizes
 #define MAX_BUFFER_LENGTH		65536
+#define MAX_IP_LENGTH			16
+#define MAX_PACK_SIZE			99999
+#define MAX_NUM_PACKS			99999
 
 //Static UI Text
 #define xCoord_descrip			5
@@ -55,3 +72,15 @@
 #define textField_numPacks		"Num. Packets:"	
 #define textField_packSize		"Packet size:"
 
+//Thread struct
+typedef struct {
+	sockaddr_in receiver;
+	int packSize;
+	int numPacks;
+	char* filePtr;
+} sendThrdParam;
+
+typedef struct {
+	sockaddr_in receiver;
+	sockaddr_in sender;
+} recvThrdParam;
