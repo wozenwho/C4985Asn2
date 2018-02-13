@@ -109,7 +109,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 			ready(clientChecked, serverChecked, tcpChecked, udpChecked, ipAddr, packSize, numPacks);
 		}
 		break;
-	
+	case WM_TIMER:
+		MessageBox(hwnd, "The fuck.", NULL, NULL);
+		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &paintstruct);
 		break;

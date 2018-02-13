@@ -82,5 +82,15 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 
 DWORD WINAPI sendUDPThread(LPVOID lpParam)
 {
+	sendThrdParam* stp = (sendThrdParam*)lpParam;
+	char defaultBuffer[MAX_PACK_SIZE];
+
+	for (int i = 0; i < stp->numPacks; i++)
+	{
+		memset(defaultBuffer, (char)65, stp->packSize);
+		sendto(socketSend, defaultBuffer, stp->packSize, 0, (struct sockaddr*)&(stp->receiver), sizeof(stp->receiver));
+	}
+
+	//createevent?
 	return 0;
 }
