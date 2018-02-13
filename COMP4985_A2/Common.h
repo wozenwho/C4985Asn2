@@ -11,6 +11,8 @@ extern HWND radioButtonClient;
 extern HWND radioButtonServer;
 extern HWND sendButton;
 
+extern int wsaResult;
+
 extern SOCKET socketRecv;
 extern SOCKET socketSend;
 
