@@ -25,6 +25,8 @@ char inputBuffer[MAX_BUFFER_LENGTH];
 //char ipBuffer[MAX_IP_LENGTH];
 //char numPackBuffer[MAX_NUM_PACKS];
 //char packSizeBuffer[MAX_PACK_SIZE];
+char fileInputBuffer[MAX_BUFFER_LENGTH];
+char fileOutputBuffer[MAX_BUFFER_LENGTH];
 
 
 //Function declarations

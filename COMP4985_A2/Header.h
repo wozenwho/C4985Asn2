@@ -84,3 +84,12 @@ typedef struct {
 	sockaddr_in receiver;
 	sockaddr_in sender;
 } recvThrdParam;
+
+typedef struct _SOCKET_INFORMATION {
+	OVERLAPPED Overlapped;
+	SOCKET Socket;
+	CHAR Buffer[MAX_BUFFER_LENGTH];
+	WSABUF DataBuffer;
+	DWORD BytesSEND;
+	DWORD BytesRECV;
+} SOCKET_INFORMATION, *LPSOCKET_INFORMATION;
