@@ -130,11 +130,11 @@ int ready(BOOL client, BOOL server, BOOL tcp, BOOL udp, char* ipAddr, int packSi
 	{
 		if (tcp)
 		{
-			MessageBox(hwnd, "Entering Client-TCP", NULL, NULL);
+			//MessageBox(hwnd, "Entering Client-TCP", NULL, NULL);
 			sendTCP(ipAddr, packSize, numPacks);
 		}
 		else {
-			MessageBox(hwnd, "Entering Server-UDP", NULL, NULL);
+			//MessageBox(hwnd, "Entering Client-UDP", NULL, NULL);
 			sendUDP(ipAddr, packSize, numPacks);
 		}
 	}
@@ -143,11 +143,11 @@ int ready(BOOL client, BOOL server, BOOL tcp, BOOL udp, char* ipAddr, int packSi
 	{
 		if (tcp)
 		{
-			MessageBox(hwnd, "Entering Server-TCP", NULL, NULL);
+			//MessageBox(hwnd, "Entering Server-TCP", NULL, NULL);
 			recvTCP(ipAddr);
 		}
 		else {
-			MessageBox(hwnd, "Entering Server-UDP", NULL, NULL);
+			//MessageBox(hwnd, "Entering Server -UDP", NULL, NULL);
 			recvUDP(ipAddr);
 		}
 	}

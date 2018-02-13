@@ -29,6 +29,10 @@
 #define id_packSize				105
 #define id_numPacks				106
 #define id_send					107
+#define id_timer				200
+
+//Timer constants
+#define ONE_SECOND				1000
 
 //Radio button constants
 #define width_radio				90

@@ -1,6 +1,7 @@
 #include "Receive.h"
 
 SOCKET AcceptSocket;
+int condition;
 
 int recvTCP(char* ipAddr)
 {
@@ -28,6 +29,7 @@ int recvUDP(char* ipAddr)
 	int errorUDP;
 	char recvBuffer[MAX_BUFFER_LENGTH];
 	int numReceived = 0;
+	condition = 1;
 
 	int SenderAddrSize = sizeof(SenderAddr);
 	ZeroMemory(&Overlapped, sizeof(Overlapped));
@@ -81,10 +83,38 @@ int recvUDP(char* ipAddr)
 			else {
 				numReceived++;
 			}
+
+			while (condition)
+			{
+				SetTimer(hwnd, id_timer, ONE_SECOND, (TIMERPROC) TimerProc);
+				wsaResult = WSARecvFrom(socketRecv, &DataBuf, 1, &BytesRecv, &Flags, (SOCKADDR*)&SenderAddr,
+					&SenderAddrSize, &Overlapped, NULL);
+				if (wsaResult != 0)
+				{
+					errorUDP = WSAGetLastError();
+					if (errorUDP != WSA_IO_PENDING)
+					{
+						MessageBox(hwnd, "Well, double shit", NULL, NULL);
+					}
+					else {
+						wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
+						if (wsaResult == WSA_WAIT_FAILED) {
+							wprintf(L"WSAWaitForMultipleEvents failed with error: %d\n", WSAGetLastError());
+						}
+
+						wsaResult = WSAGetOverlappedResult(socketRecv, &Overlapped, &BytesRecv, FALSE, &Flags);
+						if (wsaResult == FALSE)
+						{
+							errorUDP = WSAGetLastError();
+						}
+						else {
+							numReceived++;
+						}
+					}
+				}
+			}
 		}
 	}
-
-
 	return 0;
 }
 
@@ -100,32 +130,37 @@ DWORD WINAPI recvUDPThread(LPVOID lpParam)
 	return 0;
 }
 
-//TODO: fucking finish this once I know how it works jesus. 
-//Completion routine is used to write to file, otherwise pass NULL into WSARecv
-void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
-	DWORD sendBytes;
-	DWORD recvBytes;
-	DWORD flags;
-
-	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
-
-	if (Error != 0)
-	{
-		//error things here
-	}
-
-	if (BytesTransferred == 0)
-	{
-		//close socket?
-	}
-
-	if (Error != 0 || BytesTransferred == 0)
-	{
-		closesocket(SI->Socket);
-		GlobalFree(SI);
-		return;
-	}
-
-
+	MessageBox(hwnd, "TIMED OUT.", NULL, NULL);
+	condition = 0;
 }
+
+//TODO: fucking finish this once I know how it works jesus. ///Completion routine is used to write to file, otherwise pass NULL into WSARecv
+//void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
+//{
+//	DWORD sendBytes;
+//	DWORD recvBytes;
+//	DWORD flags;
+//
+//	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
+//
+//	if (Error != 0)
+//	{
+//		//error things here
+//	}
+//
+//	if (BytesTransferred == 0)
+//	{
+//		//close socket?
+//	}
+//
+//	if (Error != 0 || BytesTransferred == 0)
+//	{
+//		closesocket(SI->Socket);
+//		GlobalFree(SI);
+//		return;
+//	}
+//
+//
+//}
