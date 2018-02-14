@@ -5,7 +5,7 @@ int condition;
 
 int recvTCP(char* ipAddr)
 {
-	WSADATA wsd; 
+	WSADATA wsd;
 	struct sockaddr_in recvAddr;
 	struct sockaddr_in localAddr;
 	struct hostent *localHost;
@@ -17,7 +17,7 @@ int recvTCP(char* ipAddr)
 	SOCKET ConnSocket = INVALID_SOCKET;
 	WSABUF DataBuf;
 	DWORD RecvBytes, Flags;
-	char buffer[MAX_BUFFER_LENGTH];
+	char recvBuffer[MAX_BUFFER_LENGTH];
 
 	SOCKET acceptSocket;
 	struct sockaddr acceptAddr;
@@ -78,16 +78,34 @@ int recvTCP(char* ipAddr)
 		closesocket(acceptSocket);
 		closesocket(socketRecv);
 	}
-	//////////
+
 	DataBuf.len = MAX_BUFFER_LENGTH;
-	DataBuf.buf = buffer;
+	DataBuf.buf = recvBuffer;
 
 	while (1)
 	{
+		Flags = 0;
+		wsaResult = WSARecv(acceptSocket, &DataBuf, 1, &RecvBytes, &Flags, &Overlapped, NULL);
+		if ((wsaResult == SOCKET_ERROR) && (WSA_IO_PENDING != (errorTCP = WSAGetLastError()))) {
+			break;
+		}
 
+		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
+		if (wsaResult == WSA_WAIT_FAILED)
+		{
+			errorTCP = WSAGetLastError();
+		}
+
+		wsaResult = WSAGetOverlappedResult(acceptSocket, &Overlapped, &RecvBytes, FALSE, &Flags);
+		if (wsaResult == FALSE) {
+			errorTCP = WSAGetLastError();
+		}
+
+		if (RecvBytes == 0)
+			break;
 	}
 
-	return 0;
+	return RecvBytes;
 }
 
 int recvUDP(char* ipAddr)

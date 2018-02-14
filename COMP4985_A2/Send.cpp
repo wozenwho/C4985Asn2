@@ -79,6 +79,7 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 	WSABUF wsaBuf;
 
 	WSAOVERLAPPED Overlapped;
+	WSABUF DataBuf;
 
 	struct sockaddr_in localAddr;
 	int localAddrSize = sizeof(localAddr);
@@ -110,7 +111,31 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 		errorTCP = WSAGetLastError();
 	}
 
-	return 0;
+	DataBuf.len = MAX_BUFFER_LENGTH;
+	DataBuf.buf = sendBuf;
+
+	for (int i = 0; i < stp->numPacks; i++)
+	{
+		wsaResult = WSASend(socketSend, &DataBuf, 1, &BytesSent, Flags, &Overlapped, NULL);
+		if (wsaResult == SOCKET_ERROR)
+		{
+			errorTCP = WSAGetLastError();
+		}
+		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
+		if (wsaResult == WSA_WAIT_FAILED)
+		{
+			errorTCP = WSAGetLastError();
+		}
+		wsaResult = WSAGetOverlappedResult(socketSend, &Overlapped, &BytesSent, FALSE, &Flags);
+		
+		if (wsaResult == FALSE)
+		{
+			errorTCP = WSAGetLastError();
+		}
+		WSAResetEvent(Overlapped.hEvent);
+	}
+
+	return BytesSent;
 }
 
 DWORD WINAPI sendUDPThread(LPVOID lpParam)
