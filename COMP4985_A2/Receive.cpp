@@ -3,34 +3,86 @@
 SOCKET AcceptSocket;
 int condition;
 
-int recvTCP(char* ipAddr)
+int recvTCP()
 {
-	WSADATA wsd;
-	struct sockaddr_in recvAddr;
+	struct sockaddr_in clientAddr;
 	struct sockaddr_in localAddr;
 	struct hostent *localHost;
-	char* ip;
-	//HANDLE sendThread;
-	//DWORD threadID;
-
-	WSAOVERLAPPED Overlapped;
-	SOCKET ConnSocket = INVALID_SOCKET;
-	WSABUF DataBuf;
-	DWORD RecvBytes, Flags;
-	char recvBuffer[MAX_BUFFER_LENGTH];
-
-	SOCKET acceptSocket;
-	struct sockaddr acceptAddr;
-	int acceptLen;
-
-	int error;
-	int errorTCP;
+	char *ip;
+	HANDLE threadHandle;
+	DWORD threadID;
+	recvThrdParam* rtp = (recvThrdParam*) malloc(sizeof(recvThrdParam));
 
 	localHost = gethostbyname("");
 	ip = inet_ntoa(*(struct in_addr *) *localHost->h_addr_list);
 	localAddr.sin_family = AF_INET;
 	localAddr.sin_port = htons(PORT_NO);
 	localAddr.sin_addr.s_addr = inet_addr(ip);
+
+	clientAddr.sin_family = AF_INET;
+	clientAddr.sin_port = htons(PORT_NO);
+	clientAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	rtp->sender = clientAddr;
+	rtp->receiver = localAddr;
+
+	CreateThread(NULL, 0, recvTCPThread, (LPVOID)rtp, NULL, &threadID);
+	return 0;
+}
+
+int recvUDP()
+{
+	struct sockaddr_in clientAddr;
+	struct sockaddr_in localAddr;
+	struct hostent *localHost;
+	char *ip;
+	HANDLE threadHandle;
+	DWORD threadID;
+	recvThrdParam* rtp = (recvThrdParam*) malloc(sizeof(recvThrdParam));
+	
+	localHost = gethostbyname("");
+	ip = inet_ntoa(*(struct in_addr *) *localHost->h_addr_list);
+	localAddr.sin_family = AF_INET;
+	localAddr.sin_port = htons(PORT_NO);
+	localAddr.sin_addr.s_addr = inet_addr(ip);
+
+	clientAddr.sin_family = AF_INET;
+	clientAddr.sin_port = htons(PORT_NO);
+	clientAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	rtp->sender = clientAddr;
+	rtp->receiver = localAddr;
+
+	CreateThread(NULL, 0, recvUDPThread, (LPVOID) rtp, NULL, &threadID);
+	return 0;
+}
+
+DWORD WINAPI recvTCPThread(LPVOID lpParam)
+{
+	struct sockaddr_in recvAddr;
+	struct sockaddr_in localAddr;
+	struct hostent *localHost;
+	struct sockaddr acceptAddr;
+	SOCKET acceptSocket;
+	WSADATA wsd;
+	WSABUF DataBuf;
+	DWORD RecvBytes, Flags;
+	WSAOVERLAPPED Overlapped;
+	//SOCKET ConnSocket = INVALID_SOCKET;
+	char recvBuffer[MAX_BUFFER_LENGTH];
+	char* ip;
+	int acceptLen;
+	int error;
+	int errorTCP;
+	int numPacksReceived = 0;
+	int totalBytes = 0;
+
+	recvThrdParam* rtp = (recvThrdParam*)lpParam;
+	recvAddr = rtp->sender;
+	localAddr = rtp->receiver;
+	DataBuf.len = MAX_BUFFER_LENGTH;
+	DataBuf.buf = recvBuffer;
+
 
 	ZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
 	Overlapped.hEvent = WSACreateEvent();
@@ -46,12 +98,6 @@ int recvTCP(char* ipAddr)
 		WSACloseEvent(Overlapped.hEvent);
 		WSACleanup();
 	}
-
-	//wsaResult = WSAAsyncSelect(socketRecv, hwnd, WM_SOCKET, FD_ACCEPT);
-	//if (wsaResult == SOCKET_ERROR)
-	//{
-	//	errorTCP = WSAGetLastError();
-	//}
 
 	wsaResult = bind(socketRecv, (struct sockaddr*) &localAddr, sizeof(localAddr));
 	if (wsaResult == SOCKET_ERROR)
@@ -79,15 +125,25 @@ int recvTCP(char* ipAddr)
 		closesocket(socketRecv);
 	}
 
-	DataBuf.len = MAX_BUFFER_LENGTH;
-	DataBuf.buf = recvBuffer;
-
+	int initialLoop = 1;
 	while (1)
 	{
 		Flags = 0;
-		wsaResult = WSARecv(acceptSocket, &DataBuf, 1, &RecvBytes, &Flags, &Overlapped, NULL);
+		wsaResult = WSARecv(acceptSocket, &DataBuf, 1, NULL, &Flags, &Overlapped, NULL);
 		if ((wsaResult == SOCKET_ERROR) && (WSA_IO_PENDING != (errorTCP = WSAGetLastError()))) {
 			break;
+		}
+		numPacksReceived++;
+		//totalBytes += RecvBytes;
+
+		if (initialLoop)
+		{
+			wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, FALSE, 10000, FALSE);
+			if (wsaResult == WSA_WAIT_FAILED)
+			{
+				errorTCP = WSAGetLastError();
+			}
+			initialLoop = 0;
 		}
 
 		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
@@ -95,33 +151,41 @@ int recvTCP(char* ipAddr)
 		{
 			errorTCP = WSAGetLastError();
 		}
+		if (wsaResult == WSA_WAIT_TIMEOUT)
+		{
+			errorTCP = WSAGetLastError();
+			break;
+		}
 
 		wsaResult = WSAGetOverlappedResult(acceptSocket, &Overlapped, &RecvBytes, FALSE, &Flags);
 		if (wsaResult == FALSE) {
 			errorTCP = WSAGetLastError();
 		}
-
+		totalBytes += RecvBytes;
 		if (RecvBytes == 0)
 			break;
 	}
 
-	return RecvBytes;
+	return totalBytes;
 }
 
-int recvUDP(char* ipAddr)
+
+
+DWORD WINAPI recvUDPThread(LPVOID lpParam)
 {
-	WSADATA wsaData;
-	WSABUF DataBuf;
-	WSAOVERLAPPED Overlapped;
-	socketRecv = INVALID_SOCKET;
 	struct sockaddr_in RecvAddr;
 	struct sockaddr_in SenderAddr;
+	WSADATA wsaData;
+	WSABUF DataBuf;
 	DWORD BytesRecv = 0;
 	DWORD Flags = 0;
-	int errorUDP;
+	WSAOVERLAPPED Overlapped;
 	char recvBuffer[MAX_BUFFER_LENGTH];
-	int numReceived = 0;
-	condition = 1;
+	int errorUDP;
+	int numPacksReceived = 0;
+	int initialLoop = 1;
+
+	//socketRecv = INVALID_SOCKET;
 
 	int SenderAddrSize = sizeof(SenderAddr);
 	ZeroMemory(&Overlapped, sizeof(Overlapped));
@@ -140,7 +204,7 @@ int recvUDP(char* ipAddr)
 	RecvAddr.sin_port = htons(PORT_NO);
 	RecvAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	wsaResult = bind(socketRecv, (SOCKADDR*) &RecvAddr, sizeof(RecvAddr));
+	wsaResult = bind(socketRecv, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
 	if (wsaResult != 0)
 	{
 		errorUDP = WSAGetLastError();
@@ -153,11 +217,9 @@ int recvUDP(char* ipAddr)
 	DataBuf.buf = recvBuffer;
 	wsaResult = WSARecvFrom(socketRecv, &DataBuf, 1, &BytesRecv, &Flags, (SOCKADDR*)&SenderAddr,
 		&SenderAddrSize, &Overlapped, NULL);
-	
-	
-	while (condition)
+
+	while (1)
 	{
-		//SetTimer(hwnd, id_timer, 50, TimerProc);
 		wsaResult = WSARecvFrom(socketRecv, &DataBuf, 1, &BytesRecv, &Flags, (SOCKADDR*)&SenderAddr,
 			&SenderAddrSize, &Overlapped, NULL);
 		if (wsaResult != 0)
@@ -165,12 +227,21 @@ int recvUDP(char* ipAddr)
 			errorUDP = WSAGetLastError();
 			if (errorUDP != WSA_IO_PENDING)
 			{
-				MessageBox(hwnd, "Well, double shit", NULL, NULL);
+				errorUDP = WSAGetLastError();
 			}
 			else {
-				wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
+				if (initialLoop) {
+					wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, 10000, TRUE);
+					initialLoop = 0;
+				}
+				
+				wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, 1000, TRUE);
 				if (wsaResult == WSA_WAIT_FAILED) {
-					wprintf(L"WSAWaitForMultipleEvents failed with error: %d\n", WSAGetLastError());
+					errorUDP = WSAGetLastError();
+				}
+				if (wsaResult == WSA_WAIT_TIMEOUT)
+				{ 
+					break;
 				}
 
 				wsaResult = WSAGetOverlappedResult(socketRecv, &Overlapped, &BytesRecv, FALSE, &Flags);
@@ -179,63 +250,14 @@ int recvUDP(char* ipAddr)
 					errorUDP = WSAGetLastError();
 				}
 				else {
-					numReceived++;
-					KillTimer(hwnd, id_timer);
+					numPacksReceived++;
 				}
 			}
 		}
 		else
 		{
-			numReceived++;
-			KillTimer(hwnd, id_timer);
+			numPacksReceived++;
 		}
 	}
-	return 0;
+	return numPacksReceived;
 }
-
-DWORD WINAPI recvTCPThread(LPVOID lpParam)
-{
-	return 0;
-}
-
-
-
-DWORD WINAPI recvUDPThread(LPVOID lpParam)
-{
-	return 0;
-}
-
-VOID CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
-{
-	KillTimer(hwnd, id_timer);
-	condition = 0;
-}
-
-//TODO: fucking finish this once I know how it works jesus. ///Completion routine is used to write to file, otherwise pass NULL into WSARecv
-//void CALLBACK WorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags)
-//{
-//	DWORD sendBytes;
-//	DWORD recvBytes;
-//	DWORD flags;
-//
-//	LPSOCKET_INFORMATION SI = (LPSOCKET_INFORMATION)Overlapped;
-//
-//	if (Error != 0)
-//	{
-//		//error things here
-//	}
-//
-//	if (BytesTransferred == 0)
-//	{
-//		//close socket?
-//	}
-//
-//	if (Error != 0 || BytesTransferred == 0)
-//	{
-//		closesocket(SI->Socket);
-//		GlobalFree(SI);
-//		return;
-//	}
-//
-//
-//}

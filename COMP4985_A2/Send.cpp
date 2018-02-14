@@ -31,6 +31,10 @@ int sendTCP(char* ipAddr, int packSize, int numPacks)
 	stp->filePtr = NULL;
 
 	sendThread = CreateThread(NULL, 0, sendTCPThread, (LPVOID)stp, 0, &threadID);
+	if (sendThread == NULL)
+	{
+		error = GetLastError();
+	}
 	
 	return 0;
 }
@@ -87,6 +91,7 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 	char sendBuf[MAX_BUFFER_LENGTH];
 	DWORD BytesSent = 0;
 	DWORD Flags = 0;
+	int numPacksSent = 0;
 
 	int errorTCP;
 	int error;
@@ -127,6 +132,8 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 			errorTCP = WSAGetLastError();
 			break;
 		}
+		numPacksSent++;
+
 		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
 		if (wsaResult == WSA_WAIT_FAILED)
 		{
@@ -142,8 +149,10 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 		}
 		WSAResetEvent(Overlapped.hEvent);
 	}
-
-	return BytesSent;
+	free(lpParam);
+	WSACloseEvent(Overlapped.hEvent);
+	closesocket(socketSend);
+	return numPacksSent;
 }
 
 DWORD WINAPI sendUDPThread(LPVOID lpParam)
@@ -170,7 +179,7 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 	int errorUDP;
 	int error;
 	int retval = 0;
-	int numSent = 0;
+	int numPacksSent = 0;
 		
 	threadInfo  = *(sendThrdParam*)lpParam;
 
@@ -221,27 +230,18 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 			wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, 1, TRUE);
 			if (wsaResult == WSA_WAIT_FAILED) {
 				errorUDP = WSAGetLastError();
+				break;
 			}
 			wsaResult = WSAGetOverlappedResult(socketSend, &Overlapped, &BytesSent, FALSE, &Flags);
 			if (wsaResult == FALSE) {
 				errorUDP = WSAGetLastError();
+				break;
 			}
 			else
-				numSent++;
+				numPacksSent++;
 		}
 	}
 
 	free(lpParam);
-
-
-	//sendThrdParam* stp = (sendThrdParam*)lpParam;
-	//char defaultBuffer[MAX_PACK_SIZE];
-
-	//for (int i = 0; i < stp->numPacks; i++)
-	//{
-	//	memset(defaultBuffer, (char)65, stp->packSize);
-	//	sendto(socketSend, defaultBuffer, stp->packSize, 0, (struct sockaddr*)&(stp->receiver), sizeof(stp->receiver));
-	//}
-	////createevent?
-	return numSent;
+	return numPacksSent;
 }

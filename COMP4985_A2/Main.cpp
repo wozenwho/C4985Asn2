@@ -158,11 +158,11 @@ int ready(BOOL client, BOOL server, BOOL tcp, BOOL udp, char* ipAddr, int packSi
 		if (tcp)
 		{
 			//MessageBox(hwnd, "Entering Server-TCP", NULL, NULL);
-			recvTCP(ipAddr);
+			recvTCP();
 		}
 		else {
 			//MessageBox(hwnd, "Entering Server -UDP", NULL, NULL);
-			recvUDP(ipAddr);
+			recvUDP();
 		}
 	}
 	return 0;
