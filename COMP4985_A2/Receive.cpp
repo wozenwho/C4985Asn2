@@ -88,12 +88,14 @@ int recvUDP(char* ipAddr)
 				}
 				else {
 					numReceived++;
+					KillTimer(hwnd, id_timer);
 				}
 			}
 		}
 		else
 		{
 			numReceived++;
+			KillTimer(hwnd, id_timer);
 		}
 	}
 	return 0;

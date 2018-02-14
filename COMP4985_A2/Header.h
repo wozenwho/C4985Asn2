@@ -78,7 +78,8 @@
 
 //Thread struct
 typedef struct {
-	sockaddr_in receiver;
+	struct sockaddr_in receiver;
+	struct sockaddr_in sender;
 	int packSize;
 	int numPacks;
 	char* filePtr;
