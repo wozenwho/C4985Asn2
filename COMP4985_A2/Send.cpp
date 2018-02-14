@@ -127,7 +127,7 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 	for (int i = 0; i < stp->numPacks; i++)
 	{
 		wsaResult = WSASend(socketSend, &DataBuf, 1, &BytesSent, Flags, &Overlapped, NULL);
-		if (wsaResult == SOCKET_ERROR)
+		if ((wsaResult == SOCKET_ERROR) && (WSA_IO_PENDING != (errorTCP = WSAGetLastError())))
 		{
 			errorTCP = WSAGetLastError();
 			break;
