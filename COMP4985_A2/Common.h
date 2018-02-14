@@ -20,3 +20,4 @@ extern size_t numPackSent;
 extern size_t totalDataSent;
 extern size_t numPackRecv;
 extern size_t totalDataRecv;
+extern std::string fileName;

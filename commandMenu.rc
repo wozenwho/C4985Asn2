@@ -1,0 +1,12 @@
+#include "main.h"
+
+COMMANDMENU MENU
+{
+	MENUITEM "&Connect", MENU_CONNECT
+
+	//MENUITEM "&Disconnect", MENU_DISCONNECT
+
+	MENUITEM "&File", MENU_FILE
+
+	MENUITEM "&Quit", MENU_QUIT
+}

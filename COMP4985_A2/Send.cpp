@@ -1,6 +1,6 @@
 #include "Send.h"
 
-
+using namespace std;
 
 int sendTCP(char* ipAddr, int packSize, int numPacks)
 {
@@ -35,7 +35,7 @@ int sendTCP(char* ipAddr, int packSize, int numPacks)
 	{
 		error = GetLastError();
 	}
-	
+
 	return 0;
 }
 
@@ -47,7 +47,7 @@ int sendUDP(char* ipAddr, int packSize, int numPacks)
 	char *ip;
 	HANDLE sendThread;
 	DWORD threadID;
-	sendThrdParam* stp = (sendThrdParam*) malloc(sizeof(sendThrdParam));
+	sendThrdParam* stp = (sendThrdParam*)malloc(sizeof(sendThrdParam));
 
 	int error;
 
@@ -104,7 +104,7 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 	{
 		errorTCP = WSAGetLastError();
 	}
-	
+
 	socketSend = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 	if (socketSend == INVALID_SOCKET)
 	{
@@ -141,7 +141,7 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 			break;
 		}
 		wsaResult = WSAGetOverlappedResult(socketSend, &Overlapped, &BytesSent, FALSE, &Flags);
-		
+
 		if (wsaResult == FALSE)
 		{
 			errorTCP = WSAGetLastError();
@@ -171,6 +171,7 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 	char* ip;
 
 	sendThrdParam threadInfo;
+	ifstream myfile;
 
 	char sendBuf[MAX_BUFFER_LENGTH];
 	DWORD BytesSent = 0;
@@ -180,8 +181,8 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 	int error;
 	int retval = 0;
 	int numPacksSent = 0;
-		
-	threadInfo  = *(sendThrdParam*)lpParam;
+
+	threadInfo = *(sendThrdParam*)lpParam;
 
 	localHost = gethostbyname("");
 	ip = inet_ntoa(*(struct in_addr *) *localHost->h_addr_list);
@@ -213,11 +214,12 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 		WSACleanup();
 	}
 
-	if (threadInfo.filePtr == NULL)
+	if (fileName.empty())
 	{
 		DataBuf.len = threadInfo.packSize;
 		DataBuf.buf = sendBuf;
 		memset(DataBuf.buf, 'A', threadInfo.packSize);
+
 		for (int i = 0; i < threadInfo.numPacks; i++)
 		{
 			wsaResult = WSASendTo(socketSend, &DataBuf, 1, &BytesSent, Flags, (SOCKADDR *)&threadInfo.receiver, RecvAddrSize, &Overlapped, NULL);
@@ -241,7 +243,39 @@ DWORD WINAPI sendUDPThread(LPVOID lpParam)
 				numPacksSent++;
 		}
 	}
+	else
+	{
+		myfile.open(fileName, ios::out);
+		string line;
+		while (!myfile.eof())
+		{
+			myfile.read(sendBuf, threadInfo.packSize);
 
+			wsaResult = WSASendTo(socketSend, &DataBuf, 1, &BytesSent, Flags, (SOCKADDR *)&threadInfo.receiver, RecvAddrSize, &Overlapped, NULL);
+			if ((wsaResult == SOCKET_ERROR) && (WSA_IO_PENDING != (error = WSAGetLastError()))) {
+				WSACloseEvent(Overlapped.hEvent);
+				closesocket(socketSend);
+				WSACleanup();
+				exit(1);
+			}
+			wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, 1, TRUE);
+			if (wsaResult == WSA_WAIT_FAILED) {
+				errorUDP = WSAGetLastError();
+				break;
+			}
+			wsaResult = WSAGetOverlappedResult(socketSend, &Overlapped, &BytesSent, FALSE, &Flags);
+			if (wsaResult == FALSE) {
+				errorUDP = WSAGetLastError();
+				break;
+			}
+			else
+				numPacksSent++;
+		}
+	}
+
+
+	if (!fileName.empty())
+		myfile.close();
 	free(lpParam);
 	return numPacksSent;
 }

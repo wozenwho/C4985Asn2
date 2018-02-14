@@ -12,6 +12,7 @@ HWND radioButtonTCP;
 HWND radioButtonClient;
 HWND radioButtonServer;
 HWND sendButton;
+HWND fileButton;
 
 //Global winsock variables
 WSADATA wsaData;
@@ -29,12 +30,21 @@ char inputBuffer[MAX_BUFFER_LENGTH];
 char fileInputBuffer[MAX_BUFFER_LENGTH];
 char fileOutputBuffer[MAX_BUFFER_LENGTH];
 
+//OpenFile Global Variables
+HANDLE fileHandle;
+OPENFILENAME ofn;
+extern char inputFileBuffer[MAX_BUFFER_LENGTH] = { 0 };
+char filePathBuffer[MAX_FILEPATH_LENGTH];
+OVERLAPPED ol;
+DWORD g_BytesTransferred;
+std::string fileName = "";
+
 
 //Function declarations
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int ready(BOOL, BOOL, BOOL, BOOL, char*, int, int);
 int setup();
-void CreateSocketInformation(SOCKET);
+VOID CALLBACK FileIOCompletionRoutine(DWORD, DWORD, LPOVERLAPPED);
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR lspszCmdParam, int nCmdShow)
 {
@@ -54,6 +64,20 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR lspszCmdParam
 	Wcl.hInstance = hInst;
 	Wcl.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 	Wcl.lpszClassName = programName;
+
+	//sets memory of OPENFILEDIALOG
+	memset(&ofn, 0, sizeof(ofn)); ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hwnd;
+	ofn.lpstrFile = filePathBuffer;
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(filePathBuffer);
+	ofn.lpstrFilter = "*.TXT\0;*.txt\0";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	ol = { 0 };
 
 	Wcl.lpszMenuName = "Menu";
 	Wcl.cbClsExtra = 0;
@@ -93,6 +117,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	DWORD dwBytesRead = 0;
 	char ipAddr[MAX_IP_LENGTH];
 	SOCKET acceptSocket;
+	BOOL clientChecked;
+	BOOL serverChecked;
+	BOOL tcpChecked;
+	BOOL udpChecked;
+
+
+	int packSize;
+	int numPacks;
 	
 
 	switch (Message)
@@ -100,21 +132,37 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case BN_CLICKED:
-			BOOL clientChecked = IsDlgButtonChecked(hwnd, id_client);
-			BOOL serverChecked = IsDlgButtonChecked(hwnd, id_server);
-			BOOL tcpChecked = IsDlgButtonChecked(hwnd, id_tcp);
-			BOOL udpChecked = IsDlgButtonChecked(hwnd, id_udp);
-			
-			GetDlgItemText(hwnd, id_ipaddr, ipAddr, MAX_IP_LENGTH);
-			int packSize = GetDlgItemInt(hwnd, id_packSize, NULL, FALSE);
-			int numPacks = GetDlgItemInt(hwnd, id_numPacks, NULL, FALSE);
-
+		case id_button_ready:
+			clientChecked = IsDlgButtonChecked(hwnd, id_client);
+			serverChecked = IsDlgButtonChecked(hwnd, id_server);
+			tcpChecked = IsDlgButtonChecked(hwnd, id_tcp);
+			udpChecked = IsDlgButtonChecked(hwnd, id_udp);
+			packSize = GetDlgItemInt(hwnd, id_packSize, NULL, FALSE);
+			numPacks = GetDlgItemInt(hwnd, id_numPacks, NULL, FALSE);
 			ready(clientChecked, serverChecked, tcpChecked, udpChecked, ipAddr, packSize, numPacks);
+			break;
+		case id_button_file:
+			if (GetOpenFileName(&ofn) == TRUE)
+			{
+				fileHandle = CreateFile(ofn.lpstrFile, GENERIC_READ, 0, (LPSECURITY_ATTRIBUTES)NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, (HANDLE)NULL);
+
+				if (fileHandle == INVALID_HANDLE_VALUE) {
+					MessageBox(hwnd, "I could not open the file master.", "", NULL);
+				}
+
+				if (!ReadFileEx(fileHandle, inputFileBuffer, sizeof(inputFileBuffer) - 1, &ol, FileIOCompletionRoutine))
+				{
+					MessageBox(hwnd, inputFileBuffer, "", NULL);
+				}
+				fileName = ofn.lpstrFile;
+				CloseHandle(fileHandle);
+
+				//ifstream myfile(filename);r
+			}
+			else
+				int error = CommDlgExtendedError();
+			break;
 		}
-		break;
-	case WM_TIMER:
-		MessageBox(hwnd, "The fuck.", NULL, NULL);
 		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &paintstruct);
@@ -122,14 +170,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
-	case FD_ACCEPT:
-		if ((acceptSocket = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
-		{
-			int err = WSAGETSELECTERROR(lParam);
-		}
-		CreateSocketInformation(acceptSocket);
-		WSAAsyncSelect(acceptSocket, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
-		break;
+	//case FD_ACCEPT:
+	//	if ((acceptSocket = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
+	//	{
+	//		int err = WSAGETSELECTERROR(lParam);
+	//	}
+	//	CreateSocketInformation(acceptSocket);
+	//	WSAAsyncSelect(acceptSocket, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
+	//	break;
 	default:
 		return DefWindowProc(hwnd, Message, wParam, lParam);
 	}
@@ -215,28 +263,22 @@ int setup() {
 		xCoord_numPacks, yCoord_numPacks, numPacksFieldWidth, textBoxFieldHeight, hwnd, (HMENU)id_numPacks, NULL, NULL);
 
 	//Send button
-	sendButton = CreateWindowEx(WS_EX_CLIENTEDGE, "Button", "Send",
+	sendButton = CreateWindowEx(WS_EX_CLIENTEDGE, "Button", "Ready",
 		BS_CENTER | WS_CHILD | WS_VISIBLE,
-		xCoord_send, yCoord_send, width_radio, textBoxFieldHeight, hwnd, NULL, NULL, NULL); //(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE)
+		xCoord_send, yCoord_send, width_radio, textBoxFieldHeight, hwnd, (HMENU) id_button_ready, NULL, NULL); //(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE)
+
+	fileButton = CreateWindowEx(WS_EX_CLIENTEDGE, "Button", "File",
+		BS_CENTER | WS_CHILD | WS_VISIBLE,
+		xCoord_send + 90, yCoord_send, width_radio, textBoxFieldHeight, hwnd, (HMENU) id_button_file, NULL, NULL);
 
 	return (radioButtonClient && radioButtonServer && radioButtonTCP && radioButtonUDP && ipInputField &&
 		packSizeInputField && numPacksInputField && sendButton);
 }
 
-void CreateSocketInformation(SOCKET s)
+
+VOID CALLBACK FileIOCompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransferred, LPOVERLAPPED lpOverlapped)
 {
-	LPSOCKET_INFORMATION SI;
-
-	if ((SI = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR, sizeof(SOCKET_INFORMATION))) == NULL)
-	{
-		int err = GetLastError();
-	}
-
-	SI->Socket = s;
-	SI->RecvPosted = FALSE;
-	SI->BytesSEND = 0;
-	SI->BytesRECV = 0;
-
-	SI->Next = SocketInfoList;
-	SocketInfoList = SI;
+	printf(TEXT("Error code:\t%x\n"), dwErrorCode);
+	printf(TEXT("Number of bytes: \t%x\n"), dwNumberOfBytesTransferred);
+	g_BytesTransferred = dwNumberOfBytesTransferred;
 }

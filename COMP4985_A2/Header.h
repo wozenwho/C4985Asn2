@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <string>
 #include "Send.h"
 #include "Receive.h"
 #include "Common.h"
@@ -32,6 +35,8 @@
 #define id_numPacks				106
 #define id_send					107
 #define id_timer				200
+#define id_button_ready			201
+#define id_button_file			202
 
 //Timer constants
 #define ONE_SECOND				1000
@@ -68,6 +73,7 @@
 #define MAX_IP_LENGTH			16
 #define MAX_PACK_SIZE			99999
 #define MAX_NUM_PACKS			99999
+#define MAX_FILEPATH_LENGTH		64
 
 //Static UI Text
 #define xCoord_descrip			5
