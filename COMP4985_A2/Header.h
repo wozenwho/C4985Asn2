@@ -4,6 +4,8 @@
 #pragma comment(lib, "Ws2_32.lib")
 #include <WinSock2.h>
 #include <Windows.h>
+#include <windowsx.h>
+#include <conio.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -76,6 +78,8 @@
 #define textField_numPacks		"Num. Packets:"	
 #define textField_packSize		"Packet size:"
 
+#define WM_SOCKET				(WM_USER + 1)
+
 //Thread struct
 typedef struct {
 	struct sockaddr_in receiver;
@@ -97,4 +101,6 @@ typedef struct _SOCKET_INFORMATION {
 	WSABUF DataBuffer;
 	DWORD BytesSEND;
 	DWORD BytesRECV;
+	BOOL RecvPosted;
+	_SOCKET_INFORMATION *Next;
 } SOCKET_INFORMATION, *LPSOCKET_INFORMATION;

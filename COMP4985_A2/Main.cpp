@@ -19,6 +19,7 @@ WORD wVersionRequested = MAKEWORD(2, 2);
 int wsaResult;
 SOCKET socketRecv;
 SOCKET socketSend;
+LPSOCKET_INFORMATION SocketInfoList;
 
 //Global buffer variables
 char inputBuffer[MAX_BUFFER_LENGTH];
@@ -33,6 +34,7 @@ char fileOutputBuffer[MAX_BUFFER_LENGTH];
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int ready(BOOL, BOOL, BOOL, BOOL, char*, int, int);
 int setup();
+void CreateSocketInformation(SOCKET);
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR lspszCmdParam, int nCmdShow)
 {
@@ -40,6 +42,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInstance, LPSTR lspszCmdParam
 	WNDCLASSEX Wcl;
 	PAINTSTRUCT paintstruct;
 	HDC hdc = BeginPaint(hwnd, &paintstruct);
+	
 
 	Wcl.cbSize = sizeof(WNDCLASSEX);
 	Wcl.style = CS_HREDRAW | CS_VREDRAW;
@@ -89,6 +92,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	PAINTSTRUCT paintstruct;
 	DWORD dwBytesRead = 0;
 	char ipAddr[MAX_IP_LENGTH];
+	SOCKET acceptSocket;
 	
 
 	switch (Message)
@@ -117,6 +121,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
+		break;
+	case FD_ACCEPT:
+		if ((acceptSocket = accept(wParam, NULL, NULL)) == INVALID_SOCKET)
+		{
+			int err = WSAGETSELECTERROR(lParam);
+		}
+		CreateSocketInformation(acceptSocket);
+		WSAAsyncSelect(acceptSocket, hwnd, WM_SOCKET, FD_READ | FD_WRITE | FD_CLOSE);
 		break;
 	default:
 		return DefWindowProc(hwnd, Message, wParam, lParam);
@@ -209,4 +221,22 @@ int setup() {
 
 	return (radioButtonClient && radioButtonServer && radioButtonTCP && radioButtonUDP && ipInputField &&
 		packSizeInputField && numPacksInputField && sendButton);
+}
+
+void CreateSocketInformation(SOCKET s)
+{
+	LPSOCKET_INFORMATION SI;
+
+	if ((SI = (LPSOCKET_INFORMATION)GlobalAlloc(GPTR, sizeof(SOCKET_INFORMATION))) == NULL)
+	{
+		int err = GetLastError();
+	}
+
+	SI->Socket = s;
+	SI->RecvPosted = FALSE;
+	SI->BytesSEND = 0;
+	SI->BytesRECV = 0;
+
+	SI->Next = SocketInfoList;
+	SocketInfoList = SI;
 }

@@ -47,7 +47,13 @@ int recvTCP(char* ipAddr)
 		WSACleanup();
 	}
 
-	wsaResult = bind(socketRecv, (struct sockaddr*) localHost, sizeof(localHost));
+	wsaResult = WSAAsyncSelect(socketRecv, hwnd, WM_SOCKET, FD_ACCEPT);
+	if (wsaResult == SOCKET_ERROR)
+	{
+		errorTCP = WSAGetLastError();
+	}
+
+	wsaResult = bind(socketRecv, (struct sockaddr*) &localAddr, sizeof(localAddr));
 	if (wsaResult == SOCKET_ERROR)
 	{
 		errorTCP = WSAGetLastError();
@@ -65,7 +71,7 @@ int recvTCP(char* ipAddr)
 		WSACleanup();
 	}
 
-	acceptSocket = accept(socketRecv, &acceptAddr,  &acceptLen);
+	acceptSocket = accept(socketRecv, NULL, NULL);
 	if (acceptSocket == INVALID_SOCKET)
 	{
 		errorTCP = WSAGetLastError();
