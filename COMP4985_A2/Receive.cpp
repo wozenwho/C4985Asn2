@@ -73,7 +73,7 @@ DWORD WINAPI recvTCPThread(LPVOID lpParam)
 	char* ip;
 	int acceptLen;
 	int error;
-	int errorTCP;
+	int errorTCP = 0;
 	int numPacksReceived = 0;
 	int totalBytes = 0;
 
@@ -128,7 +128,7 @@ DWORD WINAPI recvTCPThread(LPVOID lpParam)
 	int initialLoop = 1;
 	while (1)
 	{
-		Flags = 0;
+		Flags = 0;			//acceptSocket
 		wsaResult = WSARecv(acceptSocket, &DataBuf, 1, NULL, &Flags, &Overlapped, NULL);
 		if ((wsaResult == SOCKET_ERROR) && (WSA_IO_PENDING != (errorTCP = WSAGetLastError()))) {
 			break;
@@ -136,7 +136,7 @@ DWORD WINAPI recvTCPThread(LPVOID lpParam)
 		numPacksReceived++;
 		//totalBytes += RecvBytes;
 
-		if (initialLoop)
+		/*if (initialLoop)
 		{
 			wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, FALSE, 10000, FALSE);
 			if (wsaResult == WSA_WAIT_FAILED)
@@ -144,28 +144,32 @@ DWORD WINAPI recvTCPThread(LPVOID lpParam)
 				errorTCP = WSAGetLastError();
 			}
 			initialLoop = 0;
-		}
+		}*/
 
 		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
 		if (wsaResult == WSA_WAIT_FAILED)
 		{
 			errorTCP = WSAGetLastError();
+			break;
 		}
 		if (wsaResult == WSA_WAIT_TIMEOUT)
 		{
 			errorTCP = WSAGetLastError();
 			break;
 		}
-
+											//acceptSocket
 		wsaResult = WSAGetOverlappedResult(acceptSocket, &Overlapped, &RecvBytes, FALSE, &Flags);
 		if (wsaResult == FALSE) {
 			errorTCP = WSAGetLastError();
+			break;
 		}
 		totalBytes += RecvBytes;
 		if (RecvBytes == 0)
 			break;
 	}
 
+	WSACloseEvent(Overlapped.hEvent);
+	closesocket(socketRecv);
 	return totalBytes;
 }
 
