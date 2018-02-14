@@ -5,14 +5,82 @@ int condition;
 
 int recvTCP(char* ipAddr)
 {
-	HANDLE sendThread;
-	DWORD threadID;
-	struct sockaddr_in sender;
-	recvThrdParam rtp;
-	char buffer[MAX_PACK_SIZE];
+	WSADATA wsd; 
+	struct sockaddr_in recvAddr;
+	struct sockaddr_in localAddr;
+	struct hostent *localHost;
+	char* ip;
+	//HANDLE sendThread;
+	//DWORD threadID;
+
+	WSAOVERLAPPED Overlapped;
+	SOCKET ConnSocket = INVALID_SOCKET;
+	WSABUF DataBuf;
+	DWORD RecvBytes, Flags;
+	char buffer[MAX_BUFFER_LENGTH];
+
+	SOCKET acceptSocket;
+	struct sockaddr acceptAddr;
+	int acceptLen;
+
+	int error;
 	int errorTCP;
 
-	socketRecv = socket(PF_INET, SOCK_STREAM, 0);
+	localHost = gethostbyname("");
+	ip = inet_ntoa(*(struct in_addr *) *localHost->h_addr_list);
+	localAddr.sin_family = AF_INET;
+	localAddr.sin_port = htons(PORT_NO);
+	localAddr.sin_addr.s_addr = inet_addr(ip);
+
+	ZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
+	Overlapped.hEvent = WSACreateEvent();
+	if (Overlapped.hEvent == WSA_INVALID_EVENT)
+	{
+		errorTCP = WSAGetLastError();
+	}
+
+	socketRecv = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+	if (socketRecv == INVALID_SOCKET)
+	{
+		errorTCP = WSAGetLastError();
+		WSACloseEvent(Overlapped.hEvent);
+		WSACleanup();
+	}
+
+	wsaResult = bind(socketRecv, (struct sockaddr*) localHost, sizeof(localHost));
+	if (wsaResult == SOCKET_ERROR)
+	{
+		errorTCP = WSAGetLastError();
+		WSACloseEvent(Overlapped.hEvent);
+		closesocket(socketSend);
+		WSACleanup();
+	}
+
+	wsaResult = listen(socketRecv, 2);
+	if (wsaResult == SOCKET_ERROR)
+	{
+		errorTCP = WSAGetLastError();
+		WSACloseEvent(Overlapped.hEvent);
+		closesocket(socketSend);
+		WSACleanup();
+	}
+
+	acceptSocket = accept(socketRecv, &acceptAddr,  &acceptLen);
+	if (acceptSocket == INVALID_SOCKET)
+	{
+		errorTCP = WSAGetLastError();
+		closesocket(acceptSocket);
+		closesocket(socketRecv);
+	}
+	//////////
+	DataBuf.len = MAX_BUFFER_LENGTH;
+	DataBuf.buf = buffer;
+
+	while (1)
+	{
+
+	}
+
 	return 0;
 }
 
