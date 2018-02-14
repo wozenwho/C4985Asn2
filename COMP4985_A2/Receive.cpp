@@ -47,11 +47,11 @@ int recvTCP(char* ipAddr)
 		WSACleanup();
 	}
 
-	wsaResult = WSAAsyncSelect(socketRecv, hwnd, WM_SOCKET, FD_ACCEPT);
-	if (wsaResult == SOCKET_ERROR)
-	{
-		errorTCP = WSAGetLastError();
-	}
+	//wsaResult = WSAAsyncSelect(socketRecv, hwnd, WM_SOCKET, FD_ACCEPT);
+	//if (wsaResult == SOCKET_ERROR)
+	//{
+	//	errorTCP = WSAGetLastError();
+	//}
 
 	wsaResult = bind(socketRecv, (struct sockaddr*) &localAddr, sizeof(localAddr));
 	if (wsaResult == SOCKET_ERROR)

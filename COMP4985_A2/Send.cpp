@@ -91,6 +91,8 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 	int errorTCP;
 	int error;
 
+	ZeroMemory((PVOID)sendBuf, MAX_BUFFER_LENGTH);
+
 	ZeroMemory((PVOID)&Overlapped, sizeof(WSAOVERLAPPED));
 	Overlapped.hEvent = WSACreateEvent();
 	if (Overlapped.hEvent == WSA_INVALID_EVENT)
@@ -111,7 +113,10 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 		errorTCP = WSAGetLastError();
 	}
 
-	DataBuf.len = MAX_BUFFER_LENGTH;
+	DataBuf.len = stp->packSize;
+	if (stp->filePtr == NULL) {
+		memset(sendBuf, 'A', stp->packSize);
+	}
 	DataBuf.buf = sendBuf;
 
 	for (int i = 0; i < stp->numPacks; i++)
@@ -120,17 +125,20 @@ DWORD WINAPI sendTCPThread(LPVOID lpParam)
 		if (wsaResult == SOCKET_ERROR)
 		{
 			errorTCP = WSAGetLastError();
+			break;
 		}
 		wsaResult = WSAWaitForMultipleEvents(1, &Overlapped.hEvent, TRUE, INFINITE, TRUE);
 		if (wsaResult == WSA_WAIT_FAILED)
 		{
 			errorTCP = WSAGetLastError();
+			break;
 		}
 		wsaResult = WSAGetOverlappedResult(socketSend, &Overlapped, &BytesSent, FALSE, &Flags);
 		
 		if (wsaResult == FALSE)
 		{
 			errorTCP = WSAGetLastError();
+			break;
 		}
 		WSAResetEvent(Overlapped.hEvent);
 	}
